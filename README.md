@@ -8,7 +8,7 @@
 
 ## Структура
 
-```
+```text
 src/koloagent/
 ├── __main__.py                    # entrypoint: python -m koloagent
 ├── domain/                        # сущности, исключения (бизнес-логика)

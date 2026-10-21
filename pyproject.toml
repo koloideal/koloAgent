@@ -1,0 +1,41 @@
+[project]
+name = "koloagent"
+version = "0.1.0"
+description = "koloAgent — персональный Telegram Business бот-ассистент"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "aiogram>=3.22.0",
+    "apscheduler>=3.11.1",
+    "asyncpg>=0.30.0",
+    "dature[toml]>=1.6.0",
+    "dishka>=1.10.1",
+    "orjson>=3.11.8",
+    "sqlalchemy[asyncio]>=2.0.44",
+]
+
+[dependency-groups]
+dev = [
+    "alembic>=1.18.4",
+    "isort>=7.0.0",
+    "mypy>=1.18.2",
+    "ruff>=0.14.4",
+    "watchfiles>=1.1.1",
+]
+
+[tool.pyright]
+typeCheckingMode = "standard"
+
+[tool.ruff]
+line-length = 110
+
+[tool.isort]
+line_length = 90
+
+[[tool.mypy.overrides]]
+module = "apscheduler.*"
+ignore_missing_imports = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

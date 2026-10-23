@@ -8,3 +8,10 @@ name = ""
 [bot]
 token = ""
 owner_id = 123456789
+
+[devin]
+api_key = "cog_..."
+org_id = "org-..."
+api_base_url = "https://api.devin.ai/v3"
+session_ttl_minutes = 30
+poll_interval_seconds = 20

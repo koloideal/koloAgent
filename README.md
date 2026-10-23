@@ -17,11 +17,15 @@ src/koloagent/
 │   ├── ioc.py                     # dishka-провайдеры
 │   ├── config/                    # TOML-конфиг (dature)
 │   ├── database/                  # engine, модели, DAO
+│   ├── devin/                     # клиент Devin API + состояние тредов
 │   ├── logging/                   # JSON/текстовый логгер
 │   └── scheduling/tasks.py        # фоновые задачи APScheduler
 └── presentation/
     ├── business_handlers.py       # business_* апдейты (клиентские чаты)
     ├── owner_handlers.py          # прямые сообщения боту
+    ├── devin_handlers.py          # /gh и форвардинг в тред Devin
+    ├── formatting.py              # markdown → Telegram HTML
+    ├── middlewares/only_owner.py  # доступ только владельцу
     └── error_handlers.py          # глобальная обработка ошибок
 ```
 
@@ -35,6 +39,23 @@ just watch         # автоперезапуск при изменениях
 ```
 
 Далее бот добавляется в Telegram: Настройки → Telegram Business → Чат-боты.
+
+## Devin-панель (/gh)
+
+Команда `/gh <запрос>` в личке с ботом (только owner_id) создаёт сессию через
+Devin API v3 и возвращает ссылку. Дальше просто пишешь в чат — сообщения
+форвардятся в тот же тред Devin, а его ответы прилетают обратно
+(APScheduler поллит `GET .../messages` каждые `poll_interval_seconds`).
+
+Ответ Devin стримится через `sendRichMessageDraft` (Bot API 10.x) — живое
+эфемерное превью в чате, а по завершении хода (`waiting_for_user`/`finished`)
+финализируется `sendRichMessage`: полноценный markdown — таблицы, заголовки,
+сворачиваемые блоки, формулы. Если клиент Telegram старый и rich-сообщение не
+принимается — фолбэк на обычный текст.
+
+Тред живёт `session_ttl_minutes` от последнего сообщения — по таймауту
+закрывается, нужен новый `/gh`. Настройка — секция `[devin]` в `config.toml`
+(`api_key` — service user token `cog_…`, `org_id` — из Settings → Devin API).
 
 ## Миграции
 

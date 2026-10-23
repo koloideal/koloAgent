@@ -14,7 +14,11 @@ from dishka.integrations.aiogram import setup_dishka
 
 from koloagent.infrastructure.config import load_config
 from koloagent.infrastructure.config.models import Config
-from koloagent.infrastructure.ioc import DatabaseProvider, SchedulerProvider
+from koloagent.infrastructure.ioc import (
+    DatabaseProvider,
+    DevinProvider,
+    SchedulerProvider,
+)
 from koloagent.infrastructure.logging.logger import setup_logging
 
 config: Config = load_config("secret_data/config.toml")
@@ -33,6 +37,7 @@ setup_logging("secret_data/logger-config.json")
 container = make_async_container(
     DatabaseProvider(),
     SchedulerProvider(),
+    DevinProvider(),
     context={Config: config, Bot: bot},
 )
 
@@ -41,10 +46,16 @@ dp: Dispatcher = Dispatcher(storage=MemoryStorage())
 
 async def main() -> None:
     from koloagent.presentation.business_handlers import business_router
+    from koloagent.presentation.devin_handlers import devin_router
     from koloagent.presentation.error_handlers import error_router
+    from koloagent.presentation.middlewares.only_owner import OnlyOwnerMiddleware
     from koloagent.presentation.owner_handlers import owner_router
 
-    dp.include_routers(error_router, business_router, owner_router)
+    dp.include_routers(error_router, business_router, devin_router, owner_router)
+
+    only_owner = OnlyOwnerMiddleware(config.bot.owner_id)
+    owner_router.message.middleware(only_owner)
+    devin_router.message.middleware(only_owner)
 
     setup_dishka(router=dp, container=container, auto_inject=True)
 

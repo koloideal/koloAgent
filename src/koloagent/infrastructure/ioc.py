@@ -1,15 +1,15 @@
 from collections.abc import AsyncIterable
+from datetime import timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from dishka import Provider, Scope, provide
+from apscheduler.triggers.interval import IntervalTrigger
+from dishka import AsyncContainer, Provider, Scope, provide
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from koloagent.infrastructure.config.models import Config
+from koloagent.infrastructure.config.models import Config, DevinConfig
 from koloagent.infrastructure.database.config import new_session_maker
-
-# ==========================================
-# 1. INFRASTRUCTURE LAYER
-# ==========================================
+from koloagent.infrastructure.devin import DevinApiClient, DevinThreads
+from koloagent.infrastructure.scheduling.tasks import poll_devin_thread
 
 
 class DatabaseProvider(Provider):
@@ -29,14 +29,30 @@ class DatabaseProvider(Provider):
 
 class SchedulerProvider(Provider):
     @provide(scope=Scope.APP)
-    def get_scheduler(self) -> AsyncIOScheduler:
+    def get_scheduler(
+        self, config: Config, async_container: AsyncContainer
+    ) -> AsyncIOScheduler:
         scheduler = AsyncIOScheduler()
-        # Джобы регистрируются здесь:
-        # scheduler.add_job(func=my_task, trigger=IntervalTrigger(minutes=5), kwargs={"container": async_container})
+        if config.devin is not None:
+            scheduler.add_job(
+                func=poll_devin_thread,
+                trigger=IntervalTrigger(seconds=config.devin.poll_interval_seconds),
+                kwargs={"container": async_container},
+                name="poll_devin_thread",
+            )
         return scheduler
 
 
-# ==========================================
-# 2. APPLICATION LAYER
-# ==========================================
-# Сервисы и интеракторы добавляются сюда по мере появления бизнес-логики.
+class DevinProvider(Provider):
+    @provide(scope=Scope.APP)
+    async def get_devin_client(self, config: Config) -> AsyncIterable[DevinApiClient]:
+        client = DevinApiClient(config.devin or DevinConfig())
+        try:
+            yield client
+        finally:
+            await client.close()
+
+    @provide(scope=Scope.APP)
+    def get_devin_threads(self, config: Config) -> DevinThreads:
+        ttl_minutes = config.devin.session_ttl_minutes if config.devin else 30
+        return DevinThreads(timedelta(minutes=ttl_minutes))
